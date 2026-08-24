@@ -25,10 +25,10 @@ def friendly_name(raw):
 
 def build_message(company_name):
     return (
-        f"Hey, I honestly don't mean to bother you. I came across {company_name} and wanted to reach out about truck dispatching services. "
-        "I know you probably get a lot of calls, so I figured a text was better. "
-        "If you're not interested, no worries at all and I won't reach out again. "
-        "My name's Fernando, and I'm currently offering a free trial of my services, no commitment. Thanks for your time."
+        f"Hey, I know you probably get a lot of calls, so I figured a text was better. I came across {company_name} and wanted to reach out about truck dispatching services. "
+        "My name's Fernando, I'm an independent dispatcher and I'm currently offering a free trial of my services, no commitment. "
+        "If you're not interested, no worries at all, just don't reply and I won't reach out again. "
+        "Thanks for your time, God bless you."
     )
 
 print("Leyendo Excel...")
