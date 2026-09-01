@@ -11,9 +11,9 @@ import os
 from io import StringIO
 from datetime import datetime, timedelta
 
-# Rango: 6 a 18 meses atras
-fecha_max = (datetime.now() - timedelta(days=150)).strftime("%Y%m%d")   # hace 5 meses
-fecha_min = (datetime.now() - timedelta(days=540)).strftime("%Y%m%d")   # hace 18 meses
+# Rango: 2 a 6 meses atras
+fecha_max = (datetime.now() - timedelta(days=60)).strftime("%Y%m%d")    # hace 2 meses
+fecha_min = (datetime.now() - timedelta(days=180)).strftime("%Y%m%d")   # hace 6 meses
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
