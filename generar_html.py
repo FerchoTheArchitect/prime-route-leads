@@ -5,6 +5,7 @@ Boton "Send Message" abre la app de mensajes con el numero y mensaje pre-escrito
 import pandas as pd
 import urllib.parse
 import os
+import html
 
 ARCHIVO_EXCEL  = "leads_verificados.xlsx"
 ARCHIVO_HTML   = "leads_carriers.html"
@@ -100,6 +101,10 @@ for i, row in df.iterrows():
         <a href="tel:+1{digits}" class="btn-call">📞 Call</a>
       </div>
       {'<a href="' + motus_link + '" class="btn-motus" target="_blank">🔍 Motus</a>' if motus_link else ''}
+      <div class="btn-copy-row">
+        <button class="btn-copy" onclick="copyText(this, '+1{digits}')">📋 Copy Number</button>
+        <button class="btn-copy" onclick="copyText(this, this.dataset.msg)" data-msg="{html.escape(personal_msg, quote=True)}">📋 Copy Message</button>
+      </div>
       <button class="btn-done" onclick="toggleContacted(this)">Mark as contacted</button>
     </div>
     """
@@ -195,8 +200,17 @@ html = f"""<!DOCTYPE html>
       padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600;
       text-decoration: none;
     }}
+    .btn-copy-row {{
+      display: flex; gap: 8px; padding: 0 14px 8px;
+    }}
+    .btn-copy {{
+      flex: 1; padding: 8px; border: none; border-radius: 8px;
+      background: #f5f5f5; color: #555; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: center;
+    }}
+    .btn-copy.copied {{ background: #E2EFDA; color: #375623; }}
     .btn-done {{
-      width: 100%; margin-top: 6px; padding: 8px;
+      width: 100%; margin-top: 2px; padding: 8px;
       background: #f0f0f0; color: #888; border: none;
       border-radius: 8px; font-size: 13px; cursor: pointer;
     }}
@@ -255,6 +269,15 @@ html = f"""<!DOCTYPE html>
   }});
 
   updateProgress();
+
+  function copyText(btn, text) {{
+    navigator.clipboard.writeText(text).then(() => {{
+      const original = btn.textContent;
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {{ btn.textContent = original; btn.classList.remove('copied'); }}, 2000);
+    }});
+  }}
 
   function toggleContacted(btn) {{
     const card = btn.closest('.card');
