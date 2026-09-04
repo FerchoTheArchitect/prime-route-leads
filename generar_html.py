@@ -81,7 +81,7 @@ for i, row in df.iterrows():
     fmt_phone  = f"({digits[:3]}) {digits[3:6]}-{digits[6:]}" if len(digits) == 10 else telefono
 
     rows_html += f"""
-    <div class="card {row_class}" data-dot="{dot}">
+    <div class="card {row_class}" data-dot="{dot}" data-phone="{digits}">
       <div class="card-header">
         <span class="company">{nombre}</span>
         {badge}
@@ -309,13 +309,15 @@ html = f"""<!DOCTYPE html>
 
   function filterCards() {{
     const query = document.getElementById('search').value.toLowerCase();
+    const queryDigits = query.replace(/[^0-9]/g, '');
     let visible = 0;
     document.querySelectorAll('.card').forEach((card, i) => {{
       const text = card.textContent.toLowerCase();
+      const phone = card.dataset.phone || '';
       const isDry = card.classList.contains('dry');
       const isContacted = card.classList.contains('contacted');
 
-      const matchSearch = !query || text.includes(query);
+      const matchSearch = !query || text.includes(query) || (queryDigits.length >= 4 && phone.includes(queryDigits));
       const matchFilter =
         currentFilter === 'all' ? true :
         currentFilter === 'dry' ? isDry :
