@@ -26,8 +26,8 @@ def friendly_name(raw):
 
 def build_message(company_name):
     return (
-        f"I know you probably get a lot of calls, so I figured a text was better. I came across {company_name} and wanted to reach out about truck dispatching services. "
-        "My name's Fernando, I'm an independent dispatcher and I'm currently offering a free trial of my services, no commitment. "
+        f"Hi, I know you probably get a lot of calls, so I figured a text was better. I came across {company_name} and wanted to reach out about truck dispatching services. "
+        "My name's Fernando, I'm an independent dispatcher. "
         "If you're not interested, no worries at all, I won't reach out again. "
         "If you're not in the trucking business, maybe I just made a mistake. "
         "Thanks for your time, God bless you."
