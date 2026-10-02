@@ -1,6 +1,6 @@
 """
 Genera la pagina de leads (index.html) para usar desde el celular.
-- Los textos de los mensajes vienen de messages.json (V0-V3 rotan, SP = espanol).
+- Los textos de los mensajes vienen de messages.json (V0-V3 rotan).
 - El diseno/JS de la pagina esta en plantilla_leads.html.
 - El log de envios, respuestas y notas se guarda SOLO en el celular (localStorage),
   nunca en este repo ni en la pagina publica.
@@ -52,14 +52,12 @@ def clean_num(v):
 
 with open(ARCHIVO_MENSAJES, encoding="utf-8") as f:
     mensajes = json.load(f)
-for v in mensajes["rotation"] + [mensajes["spanish"]]:
+for v in mensajes["rotation"]:
     if v not in mensajes["messages"]:
         sys.exit(f"messages.json: falta el texto de {v}")
     texto = mensajes["messages"][v]
     if texto and "{company_name}" not in texto:
         print(f"Aviso: {v} no tiene {{company_name}}")
-if not mensajes["messages"][mensajes["spanish"]].strip():
-    print(f"Aviso: el texto {mensajes['spanish']} (espanol) esta vacio; el boton 'Send in Spanish' avisara.")
 
 print("Leyendo Excel...")
 df = pd.read_excel(ARCHIVO_EXCEL, dtype=str)

@@ -95,7 +95,6 @@
       padding: 10px 6px; border-radius: 8px; font-size: 14px; font-weight: 600;
       text-decoration: none; display: block;
     }
-    .btn-sp { background: #2E75B6; }
     .btn-call {
       background: #E2EFDA; color: #375623; text-align: center;
       padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
@@ -262,8 +261,7 @@
 const LEADS = JSON.parse(document.getElementById('leads-data').textContent);
 const MSG = JSON.parse(document.getElementById('messages-data').textContent);
 const ROTATION = MSG.rotation;
-const SP = MSG.spanish;
-const STAT_VERSIONS = [...ROTATION, SP];
+const STAT_VERSIONS = [...ROTATION];
 const LEAD_BY_MC = new Map(LEADS.map(l => [l.mc, l]));
 
 const OUTCOMES = ['No reply', 'Replied', 'Asked price', 'Interested', 'Not interested', 'STOP', 'Called me scammer', 'Signed'];
@@ -396,16 +394,16 @@ function pickVersion() {
 }
 
 // Returns the text to send and logs the send (first send only).
-function recordSend(lead, spanish) {
+function recordSend(lead) {
   const e = log[lead.mc];
   if (e && e.v) {
     // Already contacted: reuse the logged version, do not log again.
-    const v = spanish ? SP : (isStatVersion(e.v) ? e.v : pickVersion());
+    const v = isStatVersion(e.v) ? e.v : pickVersion();
     toast(e.v === 'legacy' ? 'Contacted before (legacy) — not logged again'
                            : `Already logged as ${e.v} on ${fmtDate(e.sent)} — not logged again`);
     return fill(v, lead);
   }
-  const v = spanish ? SP : pickVersion();
+  const v = pickVersion();
   log[lead.mc] = entryFromLead(lead, { v, sent: nowIso(), age: ageBucket(lead.r) });
   persistLog();
   return fill(v, lead);
@@ -485,9 +483,6 @@ function cardHtml(lead, e) {
         <a href="#" class="btn-msg" data-act="send">💬 Send Message</a>
         <a href="tel:+1${esc(p)}" class="btn-call">📞</a>
       </div>
-      <div class="row">
-        <a href="#" class="btn-msg btn-sp" data-act="send-sp">🇪🇸 Send in Spanish</a>
-      </div>
       ${motus}
       <div class="row">
         <button class="btn-copy" data-act="copy-num">📋 Copy Number</button>
@@ -526,14 +521,8 @@ function onCardClick(ev) {
   const lead = leadForEntry(e || { mc });
   const act = btn.dataset.act;
 
-  if (act === 'send' || act === 'send-sp') {
-    const spanish = act === 'send-sp';
-    if (spanish && !(MSG.messages[SP] || '').trim()) {
-      ev.preventDefault();
-      alert('The Spanish (SP) text is empty. Add it in messages.json and rebuild the page.');
-      return;
-    }
-    const text = recordSend(lead, spanish);
+  if (act === 'send') {
+    const text = recordSend(lead);
     // Let the link open Messages; redraw the card a moment later (redrawing now would cancel the tap).
     btn.href = `sms:+1${lead.p}?body=${encodeURIComponent(text)}`;
     setTimeout(() => rerenderCard(mc), 400);
@@ -542,7 +531,7 @@ function onCardClick(ev) {
   ev.preventDefault();
   if (act === 'copy-num') return copyText(btn, '+1' + lead.p);
   if (act === 'copy-msg') {
-    const text = recordSend(lead, false);
+    const text = recordSend(lead);
     copyText(btn, text);
     setTimeout(() => rerenderCard(mc), 1500);
     return;
