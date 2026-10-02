@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prime Route — Leads</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #f0f2f5; color: #333; }
+
+    .topbar {
+      background: #1F4E79; color: white; padding: 12px 16px 0;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .topbar-row { display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 16px; font-weight: 700; }
+    .topbar .count { font-size: 13px; opacity: .85; }
+    .tabs { display: flex; gap: 4px; margin-top: 10px; }
+    .tab {
+      flex: 1; padding: 8px 4px; border: none; background: transparent; color: #cfe0f1;
+      font-size: 14px; font-weight: 600; border-bottom: 3px solid transparent; cursor: pointer;
+    }
+    .tab.active { color: white; border-bottom-color: white; }
+
+    .warn {
+      background: #FFF4CE; color: #6b4e00; padding: 10px 16px; font-size: 13px;
+      display: flex; gap: 10px; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid #f0d98c;
+    }
+    .warn button { flex-shrink: 0; }
+
+    .search-bar { background: white; padding: 10px 16px 6px; }
+    .search-bar input {
+      width: 100%; padding: 8px 12px; border: 1px solid #ccc;
+      border-radius: 8px; font-size: 16px;
+    }
+    .filters {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
+      padding: 6px 16px 10px; background: white; border-bottom: 1px solid #ddd;
+    }
+    .filters select {
+      width: 100%; padding: 6px 4px; border: 1px solid #ccc; border-radius: 8px;
+      font-size: 13px; background: white; color: #333;
+    }
+
+    .progress {
+      background: white; padding: 8px 16px; font-size: 13px; color: #666;
+      border-bottom: 1px solid #eee; text-align: center;
+    }
+    .progress b { color: #1F4E79; }
+
+    .list { padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      background: white; border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden;
+    }
+    .card.dry { border-left: 4px solid #70AD47; }
+    .card.other { border-left: 4px solid #BDD7EE; }
+    .card.contacted .card-header { background: #f4f6f8; }
+    .card.contacted .company { color: #666; }
+
+    .card-header {
+      padding: 12px 14px 8px; display: flex;
+      align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    .company { font-weight: 700; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+    .tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .badge {
+      background: #E2EFDA; color: #375623; font-size: 11px;
+      padding: 2px 8px; border-radius: 10px; white-space: nowrap; font-weight: 600;
+    }
+    .vlabel {
+      background: #1F4E79; color: white; font-size: 11px;
+      padding: 2px 8px; border-radius: 10px; white-space: nowrap; font-weight: 600;
+    }
+    .vlabel.legacy { background: #999; }
+    .olabel {
+      background: #FCE4D6; color: #843C0C; font-size: 11px;
+      padding: 2px 8px; border-radius: 10px; white-space: nowrap; font-weight: 600;
+    }
+
+    .card-body { padding: 0 14px 8px; }
+    .info {
+      display: flex; justify-content: space-between; gap: 12px;
+      padding: 3px 0; font-size: 13px; border-bottom: 1px solid #f5f5f5;
+    }
+    .info span:last-child { text-align: right; overflow-wrap: anywhere; }
+    .label { color: #888; font-weight: 500; white-space: nowrap; }
+
+    .card-footer { display: flex; gap: 8px; padding: 10px 14px 6px; border-top: 1px solid #f0f0f0; }
+    .btn-msg {
+      flex: 1; background: #1F4E79; color: white; text-align: center;
+      padding: 10px 6px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      text-decoration: none; display: block;
+    }
+    .btn-sp { background: #2E75B6; }
+    .btn-call {
+      background: #E2EFDA; color: #375623; text-align: center;
+      padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 600;
+      text-decoration: none; display: block;
+    }
+    .btn-motus {
+      display: block; margin: 4px 14px 6px;
+      background: #EBF3FB; color: #1F4E79; text-align: center;
+      padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      text-decoration: none;
+    }
+    .row { display: flex; gap: 8px; padding: 0 14px 8px; }
+    .btn-copy, .btn-small {
+      flex: 1; padding: 8px; border: none; border-radius: 8px;
+      background: #f5f5f5; color: #555; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-align: center;
+    }
+    .btn-copy.copied { background: #E2EFDA; color: #375623; }
+    .btn-link {
+      background: none; border: none; color: #888; font-size: 12px;
+      text-decoration: underline; cursor: pointer; padding: 4px 14px 10px; display: block;
+    }
+
+    .section { padding: 8px 14px 10px; border-top: 1px solid #f0f0f0; }
+    .section-title { font-size: 12px; color: #888; font-weight: 600; margin-bottom: 6px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 6px 10px; border-radius: 16px; border: 1px solid #ccc; background: white;
+      font-size: 12px; cursor: pointer; color: #333;
+    }
+    .chip.on { background: #1F4E79; color: white; border-color: #1F4E79; }
+    .chip.dnc.on { background: #C00000; border-color: #C00000; }
+    .note { font-size: 13px; background: #f7f7f7; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px;
+            white-space: pre-wrap; overflow-wrap: anywhere; }
+    .note .when { display: block; font-size: 11px; color: #888; margin-bottom: 2px; }
+    textarea {
+      width: 100%; min-height: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 8px;
+      font-size: 16px; font-family: inherit; resize: vertical;
+    }
+    .btn {
+      padding: 8px 14px; border: none; border-radius: 8px; background: #1F4E79; color: white;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .btn.secondary { background: #e8eef5; color: #1F4E79; }
+
+    .no-results { text-align: center; padding: 40px 16px; color: #aaa; font-size: 15px; }
+    .more { text-align: center; padding: 8px 0 24px; }
+
+    .panel { padding: 12px 16px 32px; }
+    .panel h2 { font-size: 16px; margin: 16px 0 8px; color: #1F4E79; }
+    .panel h2:first-child { margin-top: 4px; }
+    .panel p { font-size: 13px; color: #555; margin-bottom: 8px; line-height: 1.4; }
+    .box { background: white; border-radius: 12px; padding: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 12px; }
+    .box .btn { width: 100%; margin-top: 6px; }
+    .tbl-wrap { overflow-x: auto; background: white; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { padding: 8px 6px; text-align: right; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: #888; font-weight: 600; font-size: 12px; }
+    td .pct { font-weight: 700; color: #1F4E79; }
+    td .few { color: #aaa; font-size: 11px; display: block; }
+    .toast {
+      position: fixed; left: 16px; right: 16px; bottom: 20px; background: #333; color: white;
+      padding: 10px 14px; border-radius: 10px; font-size: 14px; text-align: center;
+      z-index: 200; display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <h1>🚛 Prime Route — Leads</h1>
+    <span class="count" id="total-count"></span>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="leads">Leads</button>
+    <button class="tab" data-tab="replies">Replies</button>
+    <button class="tab" data-tab="stats">Stats</button>
+    <button class="tab" data-tab="backup">Backup</button>
+  </div>
+</div>
+
+<div class="warn" id="export-warn" style="display:none">
+  <span id="export-warn-text"></span>
+  <button class="btn" onclick="exportLog()">Export</button>
+</div>
+
+<!-- LEADS -->
+<div id="view-leads">
+  <div class="search-bar">
+    <input type="search" id="search" placeholder="Search name, state, city, MC, phone...">
+  </div>
+  <div class="filters">
+    <select id="f-status">
+      <option value="all">All</option>
+      <option value="pending">Not contacted</option>
+      <option value="contacted">Contacted</option>
+    </select>
+    <select id="f-age">
+      <option value="all">Any age</option>
+      <option value="0-6">0-6 mo</option>
+      <option value="6-12">6-12 mo</option>
+      <option value="12-36">12-36 mo</option>
+      <option value="36+">36+ mo</option>
+    </select>
+    <select id="f-trucks">
+      <option value="all">Any trucks</option>
+      <option value="1">1 truck</option>
+      <option value="2-3">2-3 trucks</option>
+    </select>
+    <select id="f-version"></select>
+    <select id="f-outcome"></select>
+    <select id="f-cargo">
+      <option value="all">Any cargo</option>
+      <option value="dry">Dry Van ✅</option>
+      <option value="other">Other</option>
+    </select>
+  </div>
+  <div class="progress">
+    Contacted: <b id="contacted-count">0</b> / <b id="lead-total">0</b> · Today: <b id="today-count">0</b>
+  </div>
+  <div class="list" id="card-list"></div>
+  <div class="no-results" id="no-results" style="display:none">No results found.</div>
+  <div class="more" id="more" style="display:none"><button class="btn secondary" onclick="renderMore()">Show more</button></div>
+</div>
+
+<!-- REPLIES -->
+<div id="view-replies" style="display:none">
+  <div class="search-bar" style="padding-bottom:10px;border-bottom:1px solid #ddd">
+    <input type="search" id="r-search" placeholder="Search reply by phone number or company...">
+  </div>
+  <div class="progress" id="r-count"></div>
+  <div class="list" id="reply-list"></div>
+  <div class="no-results" id="r-none" style="display:none">No replies logged yet. Set an outcome or add a note on a contacted carrier.</div>
+</div>
+
+<!-- STATS -->
+<div id="view-stats" style="display:none" class="panel"></div>
+
+<!-- BACKUP -->
+<div id="view-backup" style="display:none" class="panel">
+  <h2>Backup</h2>
+  <p>Your send log, outcomes and notes live <b>only on this phone</b> (they are never put on the public page or GitHub). Export often so you never lose them.</p>
+  <div class="box">
+    <p id="last-export"></p>
+    <button class="btn" onclick="exportLog()">⬇️ Export CSV (full log)</button>
+    <button class="btn secondary" onclick="exportDnc()">⬇️ Export do-not-contact list</button>
+  </div>
+  <div class="box">
+    <p>Restore from an exported CSV. Merges with what is already here; nothing is deleted.</p>
+    <input type="file" id="import-file" accept=".csv,text/csv" style="display:none" onchange="importLog(this)">
+    <button class="btn secondary" onclick="document.getElementById('import-file').click()">⬆️ Import CSV</button>
+  </div>
+  <div class="box"><p id="storage-info"></p></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="application/json" id="leads-data">__LEADS_JSON__</script>
+<script type="application/json" id="messages-data">__MESSAGES_JSON__</script>
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────────
+const LEADS = JSON.parse(document.getElementById('leads-data').textContent);
+const MSG = JSON.parse(document.getElementById('messages-data').textContent);
+const ROTATION = MSG.rotation;
+const SP = MSG.spanish;
+const STAT_VERSIONS = [...ROTATION, SP];
+const LEAD_BY_MC = new Map(LEADS.map(l => [l.mc, l]));
+
+const OUTCOMES = ['No reply', 'Replied', 'Asked price', 'Interested', 'Not interested', 'STOP', 'Called me scammer', 'Signed'];
+const DNC_OUTCOMES = new Set(['STOP', 'Not interested', 'Called me scammer']);
+const REPLY_OUTCOMES = new Set(['Replied', 'Asked price', 'Interested', 'Not interested', 'STOP', 'Called me scammer', 'Signed']);
+const POSITIVE_OUTCOMES = new Set(['Asked price', 'Interested', 'Signed']);
+const DAY = 86400000;
+const NO_REPLY_DAYS = 7;
+const MIN_SAMPLE = 30;
+
+// Storage keys. prd_contacted is the OLD "Mark as contacted" list: read it, keep it updated, never delete it.
+const K_OLD = 'prd_contacted';
+const K_LOG = 'prd_log_v1';
+const K_META = 'prd_meta_v1';
+const K_UI = 'prd_ui_v1';
+
+function load(key, fallback) {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch (e) { return fallback; }
+}
+function save(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch (e) { alert('Could not save on this phone (' + e.name + '). Export your log now.'); return false; }
+}
+
+let oldContacted = new Set(load(K_OLD, []));
+let log = load(K_LOG, {});
+let meta = load(K_META, {});
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function nowIso() { return new Date().toISOString(); }
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+function regToDate(r) {   // "20260207" -> Date
+  const s = String(r || '').replace(/[^0-9]/g, '');
+  if (s.length < 8) return null;
+  return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+}
+function regPretty(r) {
+  const s = String(r || '').replace(/[^0-9]/g, '');
+  return s.length >= 8 ? `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}` : '';
+}
+function ageBucket(reg, at) {
+  const d = regToDate(reg);
+  if (!d) return '';
+  const months = ((at ? new Date(at) : new Date()) - d) / (30.44 * DAY);
+  if (months < 6) return '0-6';
+  if (months < 12) return '6-12';
+  if (months < 36) return '12-36';
+  return '36+';
+}
+function trucksGroup(t) {
+  const n = parseInt(t, 10);
+  if (!n) return '';
+  return n === 1 ? '1' : n <= 3 ? '2-3' : '4+';
+}
+function fmtPhone(d) { return d && d.length === 10 ? `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}` : (d || ''); }
+function digits(s) { const d = String(s || '').replace(/[^0-9]/g, ''); return d.length >= 10 ? d.slice(-10) : d; }
+function fill(version, lead) {
+  const t = MSG.messages[version] || '';
+  return t.split('{company_name}').join(lead.f || 'your company');
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 2500);
+}
+
+// ── Log model ────────────────────────────────────────────────────────────────
+// entry = { mc, phone, company, state, reg, trucks, age, v, sent, outcome, outcomeAt, notes:[{at,text}] }
+function isStatVersion(v) { return STAT_VERSIONS.includes(v); }
+function effOutcome(e) {
+  if (!e) return '';
+  if (e.outcome) return e.outcome;
+  if (e.v === 'legacy') return 'legacy';
+  if (e.sent && Date.now() - new Date(e.sent) >= NO_REPLY_DAYS * DAY) return 'No reply';
+  return '';   // waiting (sent less than 7 days ago)
+}
+function isDnc(e) { return !!e && DNC_OUTCOMES.has(e.outcome); }
+function dncPhones() {
+  const s = new Set();
+  for (const e of Object.values(log)) if (isDnc(e) && e.phone) s.add(e.phone);
+  return s;
+}
+function persistLog() {
+  // Keep the old list in sync too, so the old page (backup) would still show who was contacted.
+  for (const mc of Object.keys(log)) oldContacted.add(mc);
+  save(K_LOG, log);
+  save(K_OLD, [...oldContacted]);
+}
+function entryFromLead(lead, extra) {
+  return Object.assign({
+    mc: lead.mc, phone: lead.p, company: lead.n, state: lead.s, reg: regPretty(lead.r),
+    trucks: lead.t, age: '', v: '', sent: null, outcome: '', outcomeAt: null, notes: []
+  }, extra);
+}
+
+// Migrate old "Mark as contacted" carriers -> legacy (runs every load, only adds what is missing).
+(function migrateLegacy() {
+  let added = 0;
+  for (const mc of oldContacted) {
+    if (log[mc]) continue;
+    const lead = LEAD_BY_MC.get(mc);
+    log[mc] = lead
+      ? entryFromLead(lead, { v: 'legacy', outcome: 'legacy' })
+      : { mc, phone: '', company: '', state: '', reg: '', trucks: '', age: '', v: 'legacy', sent: null,
+          outcome: 'legacy', outcomeAt: null, notes: [] };
+    added++;
+  }
+  if (added) { save(K_LOG, log); meta.legacyMigratedAt = meta.legacyMigratedAt || nowIso(); save(K_META, meta); }
+})();
+
+function pickVersion() {
+  const counts = Object.fromEntries(ROTATION.map(v => [v, 0]));
+  for (const e of Object.values(log)) if (e.v in counts) counts[e.v]++;
+  const min = Math.min(...Object.values(counts));
+  const least = ROTATION.filter(v => counts[v] === min);
+  return least[Math.floor(Math.random() * least.length)];
+}
+
+// Returns the text to send and logs the send (first send only).
+function recordSend(lead, spanish) {
+  const e = log[lead.mc];
+  if (e && e.v) {
+    // Already contacted: reuse the logged version, do not log again.
+    const v = spanish ? SP : (isStatVersion(e.v) ? e.v : pickVersion());
+    toast(e.v === 'legacy' ? 'Contacted before (legacy) — not logged again'
+                           : `Already logged as ${e.v} on ${fmtDate(e.sent)} — not logged again`);
+    return fill(v, lead);
+  }
+  const v = spanish ? SP : pickVersion();
+  log[lead.mc] = entryFromLead(lead, { v, sent: nowIso(), age: ageBucket(lead.r) });
+  persistLog();
+  return fill(v, lead);
+}
+
+function setOutcome(mc, outcome) {
+  const e = log[mc]; if (!e) return;
+  if (e.outcome === outcome) { e.outcome = e.v === 'legacy' ? 'legacy' : ''; e.outcomeAt = null; }
+  else {
+    if (DNC_OUTCOMES.has(outcome) &&
+        !confirm(`"${outcome}": this carrier will be hidden from the lead list for good and never added again. Continue?`)) return;
+    e.outcome = outcome; e.outcomeAt = nowIso();
+  }
+  persistLog();
+}
+
+function addNote(mc, text) {
+  const e = log[mc]; text = text.trim();
+  if (!e || !text) return;
+  e.notes = e.notes || [];
+  e.notes.push({ at: nowIso(), text });
+  persistLog();
+}
+
+// ── Card rendering ───────────────────────────────────────────────────────────
+function cardHtml(lead, e) {
+  const contacted = !!e;
+  const isDry = (lead.g || '').includes('Dry Van');
+  const eff = effOutcome(e);
+  const vTag = !e ? '' : e.v === 'legacy'
+    ? '<span class="vlabel legacy">Legacy</span>'
+    : `<span class="vlabel">${esc(e.v)}${e.sent ? ' · ' + esc(fmtDate(e.sent)) : ''}</span>`;
+  const oTag = eff && eff !== 'legacy' ? `<span class="olabel">${esc(eff)}</span>` : '';
+  const age = ageBucket(lead.r);
+  const motus = lead.dot ? `<a href="https://motus.dot.gov/customer/${esc(lead.dot)}/account" class="btn-motus" target="_blank">🔍 Motus</a>` : '';
+  const p = lead.p;
+
+  let outcomeHtml = '';
+  if (contacted) {
+    const chips = OUTCOMES.map(o =>
+      `<button class="chip${DNC_OUTCOMES.has(o) ? ' dnc' : ''}${e.outcome === o ? ' on' : ''}" data-act="outcome" data-o="${esc(o)}">${esc(o)}</button>`
+    ).join('');
+    const notes = (e.notes || []).map(n =>
+      `<div class="note"><span class="when">${esc(fmtDateTime(n.at))}</span>${esc(n.text)}</div>`).join('');
+    outcomeHtml = `
+      <div class="section">
+        <div class="section-title">Outcome${!e.outcome && eff === 'No reply' ? ' (counts as No reply: 7+ days)' : ''}</div>
+        <div class="chips">${chips}</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Notes / their reply</div>
+        ${notes}
+        <textarea placeholder="Paste their reply or a note..."></textarea>
+        <div style="text-align:right;margin-top:6px"><button class="btn" data-act="note">Save note</button></div>
+      </div>
+      ${e.v !== 'legacy' && !e.outcome && !(e.notes || []).length
+        ? '<button class="btn-link" data-act="undo">Undo send (tapped by mistake)</button>' : ''}`;
+  }
+
+  return `
+    <div class="card ${isDry ? 'dry' : 'other'}${contacted ? ' contacted' : ''}" data-mc="${esc(lead.mc)}">
+      <div class="card-header">
+        <span class="company">${esc(lead.n)}</span>
+        <span class="tags">${isDry ? '<span class="badge">Dry Van</span>' : ''}${vTag}${oTag}</span>
+      </div>
+      <div class="card-body">
+        <div class="info"><span class="label">Phone</span><span>${esc(fmtPhone(p))}</span></div>
+        <div class="info"><span class="label">Location</span><span>${esc(lead.c)}${lead.c ? ', ' : ''}${esc(lead.s)}</span></div>
+        <div class="info"><span class="label">Trucks</span><span>${esc(lead.t)}</span></div>
+        <div class="info"><span class="label">Registered</span><span>${esc(regPretty(lead.r))}${age ? ' (' + age + ' mo)' : ''}</span></div>
+        <div class="info"><span class="label">Cargo</span><span>${esc(lead.g)}</span></div>
+        <div class="info"><span class="label">MC</span><span>${esc(lead.mc)}</span></div>
+        <div class="info"><span class="label">USDOT</span><span>${esc(lead.dot || '—')}</span></div>
+        <div class="info"><span class="label">Vehicle</span><span>${esc(lead.v || '—')}</span></div>
+      </div>
+      <div class="card-footer">
+        <a href="#" class="btn-msg" data-act="send">💬 Send Message</a>
+        <a href="tel:+1${esc(p)}" class="btn-call">📞</a>
+      </div>
+      <div class="row">
+        <a href="#" class="btn-msg btn-sp" data-act="send-sp">🇪🇸 Send in Spanish</a>
+      </div>
+      ${motus}
+      <div class="row">
+        <button class="btn-copy" data-act="copy-num">📋 Copy Number</button>
+        <button class="btn-copy" data-act="copy-msg">📋 Copy Message</button>
+      </div>
+      ${!contacted ? '<button class="btn-link" data-act="mark">Mark as contacted (texted another way)</button>' : ''}
+      ${outcomeHtml}
+    </div>`;
+}
+
+// Card for a log entry whose carrier is no longer in the lead list (e.g. restored from CSV).
+function leadForEntry(e) {
+  return LEAD_BY_MC.get(e.mc) || {
+    mc: e.mc, dot: '', n: e.company || e.mc, f: '', p: e.phone, c: '', s: e.state,
+    t: e.trucks, r: String(e.reg || '').replace(/-/g, ''), g: '', v: ''
+  };
+}
+
+function rerenderCard(mc) {
+  document.querySelectorAll(`.card[data-mc="${CSS.escape(mc)}"]`).forEach(card => {
+    const e = log[mc];
+    const tmp = document.createElement('div');
+    tmp.innerHTML = cardHtml(leadForEntry(e || { mc }), e);
+    card.replaceWith(tmp.firstElementChild);
+  });
+  updateCounts();
+}
+
+// One click handler for every card on every screen.
+function onCardClick(ev) {
+  const btn = ev.target.closest('[data-act]');
+  if (!btn) return;
+  const card = btn.closest('.card');
+  const mc = card.dataset.mc;
+  const e = log[mc];
+  const lead = leadForEntry(e || { mc });
+  const act = btn.dataset.act;
+
+  if (act === 'send' || act === 'send-sp') {
+    const spanish = act === 'send-sp';
+    if (spanish && !(MSG.messages[SP] || '').trim()) {
+      ev.preventDefault();
+      alert('The Spanish (SP) text is empty. Add it in messages.json and rebuild the page.');
+      return;
+    }
+    const text = recordSend(lead, spanish);
+    // Let the link open Messages; redraw the card a moment later (redrawing now would cancel the tap).
+    btn.href = `sms:+1${lead.p}?body=${encodeURIComponent(text)}`;
+    setTimeout(() => rerenderCard(mc), 400);
+    return;
+  }
+  ev.preventDefault();
+  if (act === 'copy-num') return copyText(btn, '+1' + lead.p);
+  if (act === 'copy-msg') {
+    const text = recordSend(lead, false);
+    copyText(btn, text);
+    setTimeout(() => rerenderCard(mc), 1500);
+    return;
+  }
+  if (act === 'mark') {
+    log[mc] = entryFromLead(lead, { v: 'manual', sent: nowIso(), age: ageBucket(lead.r) });
+    persistLog(); rerenderCard(mc); return;
+  }
+  if (act === 'undo') {
+    if (!confirm('Remove this send from the log?')) return;
+    delete log[mc]; oldContacted.delete(mc); persistLog();
+    rerenderCard(mc); return;
+  }
+  if (act === 'outcome') {
+    setOutcome(mc, btn.dataset.o);
+    if (isDnc(log[mc]) && currentTab === 'leads') {
+      card.remove(); updateCounts(); toast('Hidden: do not contact'); return;
+    }
+    rerenderCard(mc); return;
+  }
+  if (act === 'note') {
+    const ta = card.querySelector('textarea');
+    if (!ta.value.trim()) return;
+    addNote(mc, ta.value);
+    rerenderCard(mc); toast('Note saved'); return;
+  }
+}
+
+function copyText(btn, text) {
+  const done = () => {
+    const original = btn.textContent;
+    btn.textContent = '✓ Copied!'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, () => prompt('Copy this:', text));
+  else prompt('Copy this:', text);
+}
+
+// ── Leads screen ─────────────────────────────────────────────────────────────
+const PAGE = 100;
+let filtered = [];
+let shown = 0;
+let ui = load(K_UI, {});
+
+function fillSelect(id, options, value) {
+  const s = document.getElementById(id);
+  s.innerHTML = options.map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`).join('');
+  s.value = options.some(o => o[0] === value) ? value : options[0][0];
+}
+fillSelect('f-version', [['all', 'Any version'], ...STAT_VERSIONS.map(v => [v, v]), ['legacy', 'Legacy'], ['manual', 'Manual']], ui.version);
+fillSelect('f-outcome', [['all', 'Any outcome'], ['waiting', 'Waiting (<7d)'],
+  ...OUTCOMES.filter(o => !DNC_OUTCOMES.has(o)).map(o => [o, o]), ['legacy', 'Legacy (unknown)']], ui.outcome);
+for (const k of ['status', 'age', 'trucks', 'cargo']) if (ui[k]) document.getElementById('f-' + k).value = ui[k];
+
+function applyFilters() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const qd = q.replace(/[^0-9]/g, '');
+  const f = {};
+  for (const k of ['status', 'age', 'trucks', 'version', 'outcome', 'cargo']) f[k] = document.getElementById('f-' + k).value;
+  ui = f; save(K_UI, ui);
+  const dncP = dncPhones();
+
+  filtered = LEADS.filter(l => {
+    const e = log[l.mc];
+    if (isDnc(e) || dncP.has(l.p)) return false;          // do-not-contact: hidden for good
+    if (f.status === 'pending' && e) return false;
+    if (f.status === 'contacted' && !e) return false;
+    if (f.age !== 'all' && ageBucket(l.r) !== f.age) return false;
+    if (f.trucks !== 'all' && trucksGroup(l.t) !== f.trucks) return false;
+    if (f.version !== 'all' && (!e || e.v !== f.version)) return false;
+    if (f.outcome !== 'all') {
+      const o = effOutcome(e);
+      if (!e) return false;
+      if (f.outcome === 'waiting' ? o !== '' : o !== f.outcome) return false;
+    }
+    if (f.cargo !== 'all' && ((l.g || '').includes('Dry Van') ? 'dry' : 'other') !== f.cargo) return false;
+    if (q) {
+      const hay = `${l.n} ${l.s} ${l.c} ${l.mc} ${l.dot}`.toLowerCase();
+      if (!hay.includes(q) && !(qd.length >= 4 && l.p.includes(qd))) return false;
+    }
+    return true;
+  });
+  shown = 0;
+  document.getElementById('card-list').innerHTML = '';
+  renderMore();
+  document.getElementById('total-count').textContent = filtered.length.toLocaleString() + ' carriers';
+  document.getElementById('no-results').style.display = filtered.length ? 'none' : 'block';
+  updateCounts();
+}
+
+function renderMore() {
+  const slice = filtered.slice(shown, shown + PAGE);
+  document.getElementById('card-list').insertAdjacentHTML('beforeend', slice.map(l => cardHtml(l, log[l.mc])).join(''));
+  shown += slice.length;
+  document.getElementById('more').style.display = shown < filtered.length ? 'block' : 'none';
+}
+
+function updateCounts() {
+  let c = 0, today = 0;
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  for (const l of LEADS) if (log[l.mc]) c++;
+  for (const e of Object.values(log)) if (e.sent && new Date(e.sent) >= t0) today++;
+  document.getElementById('contacted-count').textContent = c.toLocaleString();
+  document.getElementById('lead-total').textContent = LEADS.length.toLocaleString();
+  document.getElementById('today-count').textContent = today.toLocaleString();
+  updateExportWarning();
+}
+
+// Load more automatically when scrolling near the bottom.
+new IntersectionObserver(entries => {
+  if (entries.some(en => en.isIntersecting) && currentTab === 'leads' && shown < filtered.length) renderMore();
+}, { rootMargin: '800px' }).observe(document.getElementById('more'));
+
+// ── Replies screen ───────────────────────────────────────────────────────────
+function lastActivity(e) {
+  const times = [e.sent, e.outcomeAt, ...(e.notes || []).map(n => n.at)].filter(Boolean).map(t => +new Date(t));
+  return times.length ? Math.max(...times) : 0;
+}
+function renderReplies() {
+  const q = document.getElementById('r-search').value.trim().toLowerCase();
+  const qd = q.replace(/[^0-9]/g, '');
+  const items = Object.values(log).filter(e => {
+    const o = effOutcome(e);
+    const hasReply = o && o !== 'No reply' && o !== 'legacy';
+    if (!hasReply && !(e.notes || []).length) return false;
+    if (!q) return true;
+    const lead = leadForEntry(e);
+    if (qd.length >= 3 && String(e.phone || lead.p || '').includes(qd)) return true;
+    return `${e.company} ${lead.n} ${e.mc}`.toLowerCase().includes(q);
+  }).sort((a, b) => lastActivity(b) - lastActivity(a));
+  document.getElementById('reply-list').innerHTML = items.map(e => cardHtml(leadForEntry(e), e)).join('');
+  document.getElementById('r-count').textContent = `${items.length} carrier${items.length === 1 ? '' : 's'} with replies or notes`;
+  document.getElementById('r-none').style.display = items.length ? 'none' : 'block';
+}
+
+// ── Stats screen ─────────────────────────────────────────────────────────────
+function statRows(groupFn, groups) {
+  const rows = Object.fromEntries(groups.map(g => [g, { sends: 0, waiting: 0, replies: 0, positive: 0 }]));
+  for (const e of Object.values(log)) {
+    if (!isStatVersion(e.v)) continue;            // legacy + manual are never counted
+    const g = groupFn(e);
+    if (!(g in rows)) continue;
+    const r = rows[g];
+    r.sends++;
+    const o = effOutcome(e);
+    if (!o) { r.waiting++; continue; }
+    if (REPLY_OUTCOMES.has(o)) r.replies++;
+    if (POSITIVE_OUTCOMES.has(o)) r.positive++;
+  }
+  return rows;
+}
+function pctCell(n, base) {
+  if (!base) return '<td>—</td>';
+  const pct = (100 * n / base).toFixed(1) + '%';
+  return `<td><span class="pct">${pct}</span> (${n})${base < MIN_SAMPLE ? '<span class="few">too few</span>' : ''}</td>`;
+}
+function statTable(title, label, rows) {
+  const body = Object.entries(rows).map(([g, r]) => {
+    const settled = r.sends - r.waiting;
+    return `<tr><td>${esc(g)}</td><td>${r.sends}</td><td>${r.waiting}</td>${pctCell(r.replies, settled)}${pctCell(r.positive, settled)}</tr>`;
+  }).join('');
+  return `<h2>${esc(title)}</h2><div class="tbl-wrap"><table>
+    <tr><th>${esc(label)}</th><th>Sends</th><th>Waiting</th><th>Reply rate</th><th>Positive</th></tr>${body}</table></div>`;
+}
+function renderStats() {
+  let legacy = 0, manual = 0;
+  for (const e of Object.values(log)) { if (e.v === 'legacy') legacy++; else if (e.v === 'manual') manual++; }
+  const breakdown = STAT_VERSIONS.map(v => {
+    const c = Object.fromEntries(OUTCOMES.map(o => [o, 0])); let waiting = 0;
+    for (const e of Object.values(log)) if (e.v === v) { const o = effOutcome(e); if (o) c[o]++; else waiting++; }
+    return `<tr><td>${esc(v)}</td><td>${waiting}</td>${OUTCOMES.map(o => `<td>${c[o]}</td>`).join('')}</tr>`;
+  }).join('');
+  document.getElementById('view-stats').innerHTML = `
+    <p>Rates use <b>settled</b> sends only: sends that have an outcome, or were sent ${NO_REPLY_DAYS}+ days ago (those count as No reply).
+       "Waiting" = sent less than ${NO_REPLY_DAYS} days ago with no outcome yet. "too few" = under ${MIN_SAMPLE} settled sends, don't trust it yet.
+       Positive = Asked price + Interested + Signed. Not counted: ${legacy.toLocaleString()} legacy, ${manual} manual.</p>
+    ${statTable('By message version', 'Version', statRows(e => e.v, STAT_VERSIONS))}
+    ${statTable('By age at send (months)', 'Age', statRows(e => e.age || ageBucket(String(e.reg).replace(/-/g, ''), e.sent), ['0-6', '6-12', '12-36', '36+']))}
+    ${statTable('By trucks', 'Trucks', statRows(e => trucksGroup(e.trucks), ['1', '2-3', '4+']))}
+    <h2>Outcomes by version (counts)</h2>
+    <div class="tbl-wrap"><table><tr><th>Version</th><th>Waiting</th>${OUTCOMES.map(o => `<th>${esc(o)}</th>`).join('')}</tr>${breakdown}</table></div>`;
+}
+
+// ── Export / import ──────────────────────────────────────────────────────────
+const CSV_COLS = ['date_sent', 'company', 'phone', 'mc', 'state', 'registration_date', 'age_bucket', 'trucks',
+                  'message_version', 'outcome', 'notes', 'outcome_date'];
+
+function csvCell(v) {
+  const s = String(v ?? '');
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function notesToText(notes) { return (notes || []).map(n => `[${n.at}] ${n.text}`).join('\n'); }
+function textToNotes(s) {
+  const out = []; if (!s) return out;
+  const re = /(?:^|\n)\[(\d{4}-\d\d-\d\dT[0-9:.]+Z?)\] /g;
+  const marks = [...s.matchAll(re)];
+  if (!marks.length) return [{ at: nowIso(), text: s.trim() }];
+  marks.forEach((m, i) => {
+    const start = m.index + m[0].length;
+    const end = i + 1 < marks.length ? marks[i + 1].index : s.length;
+    out.push({ at: m[1], text: s.slice(start, end).replace(/\n$/, '') });
+  });
+  return out;
+}
+function entryRow(e) {
+  const lead = LEAD_BY_MC.get(e.mc);
+  return {
+    date_sent: e.sent || '', company: e.company || (lead && lead.n) || '', phone: e.phone || (lead && lead.p) || '',
+    mc: e.mc, state: e.state || (lead && lead.s) || '', registration_date: e.reg || (lead ? regPretty(lead.r) : ''),
+    age_bucket: e.age || '', trucks: e.trucks || (lead && lead.t) || '', message_version: e.v,
+    outcome: e.outcome || '', notes: notesToText(e.notes), outcome_date: e.outcomeAt || ''
+  };
+}
+function toCsv(rows, cols) {
+  return '﻿' + [cols.join(','), ...rows.map(r => cols.map(c => csvCell(r[c])).join(','))].join('\r\n') + '\r\n';
+}
+async function deliverFile(name, text) {
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  const file = new File([blob], name, { type: 'text/csv' });
+  const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (mobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return true; }
+    catch (err) { if (err.name === 'AbortError') return false; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  return true;
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+async function exportLog() {
+  const rows = Object.values(log).sort((a, b) => (a.sent || '').localeCompare(b.sent || '')).map(entryRow);
+  if (await deliverFile(`prd_log_${today()}.csv`, toCsv(rows, CSV_COLS))) {
+    meta.lastExport = nowIso(); save(K_META, meta);
+    updateExportWarning(); renderBackup();
+    toast(`Exported ${rows.length.toLocaleString()} rows`);
+  }
+}
+async function exportDnc() {
+  const rows = Object.values(log).filter(isDnc).map(e => {
+    const r = entryRow(e); return { phone: r.phone, mc: r.mc, company: r.company, reason: e.outcome, date: e.outcomeAt || '' };
+  });
+  await deliverFile(`do_not_contact_${today()}.csv`, toCsv(rows, ['phone', 'mc', 'company', 'reason', 'date']));
+  toast(`${rows.length} do-not-contact`);
+}
+
+function parseCsv(text) {
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = '';
+    } else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  const head = (rows.shift() || []).map(h => h.trim().toLowerCase());
+  return rows.filter(r => r.some(c => c.trim())).map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()])));
+}
+function normMc(m) { m = String(m || '').trim().toUpperCase(); if (!m) return ''; return m.startsWith('MC-') ? m : 'MC-' + m.replace(/^MC/, ''); }
+
+function importLog(input) {
+  const file = input.files[0]; input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const rows = parseCsv(reader.result);
+    if (!rows.length || !('mc' in rows[0]) || !('message_version' in rows[0])) {
+      alert('This does not look like a Prime Route log export (needs mc and message_version columns).'); return;
+    }
+    let added = 0, merged = 0;
+    for (const r of rows) {
+      const mc = normMc(r.mc); if (!mc) continue;
+      const inc = {
+        mc, phone: digits(r.phone), company: r.company, state: r.state, reg: r.registration_date,
+        trucks: r.trucks, age: r.age_bucket, v: r.message_version, sent: r.date_sent || null,
+        outcome: r.outcome, outcomeAt: r.outcome_date || null, notes: textToNotes(r.notes)
+      };
+      const cur = log[mc];
+      if (!cur) { log[mc] = inc; added++; continue; }
+      merged++;
+      for (const k of ['phone', 'company', 'state', 'reg', 'trucks', 'age']) if (!cur[k] && inc[k]) cur[k] = inc[k];
+      if ((!cur.v || cur.v === 'legacy' || cur.v === 'manual') && inc.v && inc.v !== 'legacy' && inc.v !== cur.v) {
+        if (cur.outcome === 'legacy') cur.outcome = '';
+        cur.v = inc.v;
+      }
+      if (inc.sent && (!cur.sent || inc.sent < cur.sent)) cur.sent = inc.sent;
+      const curReal = cur.outcome && cur.outcome !== 'legacy';
+      const incReal = inc.outcome && inc.outcome !== 'legacy';
+      if (incReal && (!curReal || (inc.outcomeAt || '') > (cur.outcomeAt || ''))) { cur.outcome = inc.outcome; cur.outcomeAt = inc.outcomeAt; }
+      if (!cur.outcome && inc.outcome) cur.outcome = inc.outcome;
+      const seen = new Set((cur.notes || []).map(n => n.at + '|' + n.text));
+      cur.notes = cur.notes || [];
+      for (const n of inc.notes) if (!seen.has(n.at + '|' + n.text)) cur.notes.push(n);
+      cur.notes.sort((a, b) => a.at.localeCompare(b.at));
+    }
+    persistLog();
+    alert(`Import done: ${added} added, ${merged} merged with existing. Nothing was deleted.`);
+    showTab(currentTab);
+  };
+  reader.readAsText(file);
+}
+
+function daysSinceExport() {
+  return meta.lastExport ? Math.floor((Date.now() - new Date(meta.lastExport)) / DAY) : null;
+}
+function updateExportWarning() {
+  const has = Object.values(log).some(e => e.v !== 'legacy' || (e.notes || []).length);
+  const d = daysSinceExport();
+  const show = has && (d === null || d >= 7);
+  document.getElementById('export-warn').style.display = show ? 'flex' : 'none';
+  if (show) document.getElementById('export-warn-text').textContent =
+    d === null ? "You haven't exported your log yet. Export it so you can't lose it."
+               : `Last export was ${d} days ago. Export your log now.`;
+}
+function renderBackup() {
+  const d = daysSinceExport();
+  document.getElementById('last-export').textContent = meta.lastExport
+    ? `Last export: ${fmtDateTime(meta.lastExport)} (${d} day${d === 1 ? '' : 's'} ago)` : 'Never exported.';
+  const n = Object.keys(log).length;
+  const legacy = Object.values(log).filter(e => e.v === 'legacy').length;
+  document.getElementById('storage-info').textContent =
+    `On this phone: ${n.toLocaleString()} contacted carriers in the log (${legacy.toLocaleString()} legacy from the old "Mark as contacted"). ` +
+    `Old list still kept: ${oldContacted.size.toLocaleString()} MCs.`;
+}
+
+// ── Tabs ─────────────────────────────────────────────────────────────────────
+let currentTab = 'leads';
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  for (const t of ['leads', 'replies', 'stats', 'backup'])
+    document.getElementById('view-' + t).style.display = t === tab ? '' : 'none';
+  if (tab === 'leads') applyFilters();
+  if (tab === 'replies') renderReplies();
+  if (tab === 'stats') renderStats();
+  if (tab === 'backup') renderBackup();
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+document.getElementById('card-list').addEventListener('click', onCardClick);
+document.getElementById('reply-list').addEventListener('click', onCardClick);
+let searchTimer;
+document.getElementById('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(applyFilters, 200); });
+document.getElementById('r-search').addEventListener('input', renderReplies);
+document.querySelectorAll('.filters select').forEach(s => s.addEventListener('change', applyFilters));
+
+// Ask the browser not to clear this site's storage (helps on iPhone; harmless elsewhere).
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+applyFilters();
+</script>
+</body>
+</html>
