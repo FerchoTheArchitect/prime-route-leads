@@ -1,0 +1,4 @@
+# Local-only: never publish (repo is public)
+backups/
+private/
+*.csv
