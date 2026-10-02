@@ -1,0 +1,12 @@
+{
+  "_help": "Edit texts here, then run: python generar_html.py. {company_name} is replaced with the cleaned company name. If you change a text a lot, add it as a NEW version (e.g. V4) and put it in 'rotation' instead of editing an old one, so stats stay honest.",
+  "rotation": ["V0", "V1", "V2", "V3"],
+  "spanish": "SP",
+  "messages": {
+    "V0": "Hi, I know you probably get a lot of calls, so I figured a text was better. I came across {company_name} and wanted to reach out about truck dispatching services. My name's Fernando, I'm an independent dispatcher. If you're not interested, no worries at all, I won't reach out again. Thanks for your time, God bless you.",
+    "V1": "Hi, I know you probably get a lot of calls, so I figured a text was better. I'm Fernando with Prime Route Dispatch. I came across {company_name} and I dispatch for small carriers: loads, paperwork and rate confirmations for 5% of gross. First 3 loads are commission-free, no long-term commitment, cancel anytime. Se habla español. Not interested? Reply STOP and I won't text again.",
+    "V2": "Hi, I know you probably get a lot of calls, so I figured a text was better. Fernando here, an independent dispatcher in Tulsa. Quick question for {company_name}: do you have someone finding your loads, or do you do it yourself? Se habla español. Reply STOP and I won't text again.",
+    "V3": "Hi, I know you probably get a lot of calls, so I figured a text was better. I'm Fernando with Prime Route Dispatch. I'd like to find {company_name} 3 loads with no commission, and you decide after if you want to continue. No long-term commitment. Se habla español. Reply STOP to opt out.",
+    "SP": ""
+  }
+}

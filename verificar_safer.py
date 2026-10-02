@@ -1,26 +1,96 @@
 """
 Verifica carriers contra SAFER usando DOT number.
-Busca carriers registrados hace 2-12 meses (ya tuvieron tiempo de obtener autoridad).
+Por defecto busca carriers registrados hace 2-6 meses con 1 camion (como siempre).
 Solo conserva los AUTHORIZED FOR Property.
+
+Opciones (todas opcionales):
+  --min-months 12 --max-months 36   ventana de registro (meses atras)
+  --min-trucks 1  --max-trucks 3    numero de camiones (power units)
+  --batch 500                       cuantos verificar contra Motus
+  --dry-run                         solo muestra el filtro y la lista do-not-contact, no descarga nada
+Ejemplo: python verificar_safer.py --min-months 12 --max-months 36 --max-trucks 3
 """
 
+import argparse
+import glob
 import pandas as pd
 import requests
+import sys
 import time
 import os
 from io import StringIO
 from datetime import datetime, timedelta
 
-# Rango: 2 a 6 meses atras
-fecha_max = (datetime.now() - timedelta(days=60)).strftime("%Y%m%d")    # hace 2 meses
-fecha_min = (datetime.now() - timedelta(days=180)).strftime("%Y%m%d")   # hace 6 meses
+ap = argparse.ArgumentParser(description="Verifica carriers nuevos contra Motus.")
+ap.add_argument("--min-months", type=int, default=2, help="registrados hace al menos N meses (default 2)")
+ap.add_argument("--max-months", type=int, default=6, help="registrados hace como maximo N meses (default 6)")
+ap.add_argument("--min-trucks", type=int, default=1, help="minimo de camiones (default 1)")
+ap.add_argument("--max-trucks", type=int, default=1, help="maximo de camiones (default 1)")
+ap.add_argument("--batch", type=int, default=500, help="cuantos verificar contra Motus (default 500)")
+ap.add_argument("--private-dir", default="private", help="carpeta local con do_not_contact.csv / exports del celular")
+ap.add_argument("--dry-run", action="store_true", help="no descarga ni verifica nada")
+args = ap.parse_args()
+if args.min_months > args.max_months or args.min_trucks > args.max_trucks:
+    sys.exit("Rango invalido: min debe ser <= max")
+
+# Rango de registro (1 mes = 30 dias, igual que antes: 2-6 meses = 60-180 dias)
+fecha_max = (datetime.now() - timedelta(days=args.min_months * 30)).strftime("%Y%m%d")
+fecha_min = (datetime.now() - timedelta(days=args.max_months * 30)).strftime("%Y%m%d")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml",
 }
 
-print(f"Buscando carriers registrados entre {fecha_min} y {fecha_max}...")
+
+def norm_phone(p):
+    # 9012658635.0 -> 9012658635
+    try:
+        if float(p) == int(float(p)):
+            p = str(int(float(p)))
+    except (ValueError, TypeError, OverflowError):
+        pass
+    digits = "".join(c for c in str(p) if c.isdigit())
+    return digits[-10:] if len(digits) >= 10 else ""
+
+
+def norm_mc(m):
+    return str(m).upper().replace("MC-", "").replace(".0", "").strip()
+
+
+DNC_OUTCOMES = {"STOP", "Not interested", "Called me scammer"}
+
+def load_do_not_contact(folder):
+    """Lee los CSV exportados del celular (no se publican, la carpeta esta en .gitignore).
+    - do_not_contact*.csv: todas las filas son do-not-contact
+    - cualquier otro CSV con columna 'outcome': filas con STOP / Not interested / Called me scammer
+    """
+    phones, mcs = set(), set()
+    for path in sorted(glob.glob(os.path.join(folder, "*.csv"))):
+        try:
+            d = pd.read_csv(path, dtype=str, encoding="utf-8-sig").fillna("")
+        except Exception as e:
+            print(f"  (no se pudo leer {path}: {e})")
+            continue
+        if os.path.basename(path).lower().startswith("do_not_contact"):
+            rows = d
+        elif "outcome" in d.columns:
+            rows = d[d["outcome"].isin(DNC_OUTCOMES)]
+        else:
+            continue
+        for _, r in rows.iterrows():
+            ph = norm_phone(r.get("phone", ""))
+            mc = norm_mc(r.get("mc", ""))
+            if ph: phones.add(ph)
+            if mc: mcs.add(mc)
+    return phones, mcs
+
+
+dnc_phones, dnc_mcs = load_do_not_contact(args.private_dir)
+print(f"Do-not-contact: {len(dnc_phones)} telefonos, {len(dnc_mcs)} MCs (de {args.private_dir}/)")
+
+print(f"Buscando carriers registrados entre {fecha_min} y {fecha_max}, "
+      f"{args.min_trucks}-{args.max_trucks} camion(es)...")
 
 base_url = "https://data.transportation.gov/resource/az4n-8mr2.csv"
 CANADA_PROVINCES = "('ON','QC','BC','AB','MB','SK','NS','NB','PE','NL','NT','YT','NU')"
@@ -32,12 +102,18 @@ where = (
     f"AND docket1prefix = 'MC' "
     f"AND docket1_status_code = 'A' "
     f"AND interstate_beyond_100_miles != '0' "
-    f"AND power_units::number = 1 "
+    f"AND power_units::number >= {args.min_trucks} "
+    f"AND power_units::number <= {args.max_trucks} "
     f"AND phy_state NOT IN {CANADA_PROVINCES} "
     f"AND (crgo_genfreight = 'X' OR crgo_metalsheet = 'X' OR crgo_bldgmat = 'X' OR crgo_construct = 'X') "
     f"AND (owntract::number > 0 OR trmtract::number > 0 OR trptract::number > 0 "
     f"OR owntrail::number > 0 OR trmtrail::number > 0 OR trptrail::number > 0)"
 )
+
+if args.dry_run:
+    print("\n[DRY RUN] Filtro FMCSA:\n  " + where)
+    print(f"[DRY RUN] Verificaria hasta {args.batch} carriers contra Motus. No se descargo nada.")
+    sys.exit(0)
 
 todos = []
 offset = 0
@@ -45,7 +121,7 @@ while True:
     params = {
         "$select": "dot_number,docket1,legal_name,phone,phy_street,phy_city,phy_state,phy_zip,power_units,add_date,"
                    "crgo_genfreight,crgo_metalsheet,crgo_bldgmat,crgo_drybulk,crgo_construct,"
-                   "owntract,trmtract,trptract,owntrail,trmtrail,trptrail",
+                   "owntract,trmtract,trptract,owntrail,trmtrail,trptrail,owntruck,trmtruck,trptruck",
         "$where": where,
         "$order": "add_date DESC",
         "$limit": 50000,
@@ -79,10 +155,19 @@ if os.path.exists(ARCHIVO_SALIDA):
     ya_verificados = set(df_previo["MC Number"].astype(str).str.replace("MC-", ""))
     print(f"Ya verificados previamente: {len(ya_verificados)}")
 
-# Saltar los ya verificados y tomar los siguientes 500
+# Saltar los ya verificados, telefonos repetidos y do-not-contact; tomar los siguientes N
+telefonos_previos = set()
+if df_previo is not None:
+    telefonos_previos = set(df_previo["Telefono"].apply(norm_phone)) - {""}
 df["_mc"] = df["docket1"].astype(str).str.replace(".0", "", regex=False)
-df_pendientes = df[~df["_mc"].isin(ya_verificados)].copy()
-df_check = df_pendientes.head(500).copy()
+df["_phone_norm"] = df["phone"].apply(norm_phone)
+es_dnc = df["_mc"].isin(dnc_mcs) | df["_phone_norm"].isin(dnc_phones)
+print(f"Saltados por do-not-contact: {int(es_dnc.sum())}")
+df_pendientes = df[~df["_mc"].isin(ya_verificados)
+                   & ~df["_phone_norm"].isin(telefonos_previos)
+                   & ~es_dnc].copy()
+df_pendientes = df_pendientes.drop_duplicates(subset=["_phone_norm"], keep="first")
+df_check = df_pendientes.head(args.batch).copy()
 print(f"A verificar contra SAFER: {len(df_check)} (saltando {len(ya_verificados)} ya verificados)")
 
 
@@ -217,10 +302,6 @@ else:
     resultado = resultado_new
 
 # Eliminar duplicados por telefono (mismo numero = mismo dueno, queda el primero)
-def norm_phone(p):
-    digits = "".join(c for c in str(p) if c.isdigit())
-    return digits[-10:] if len(digits) >= 10 else ""
-
 resultado["_phone_norm"] = resultado["Telefono"].apply(norm_phone)
 antes = len(resultado)
 resultado = resultado[resultado["_phone_norm"] != ""]  # quitar sin telefono
