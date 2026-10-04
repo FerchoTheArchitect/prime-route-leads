@@ -18,6 +18,7 @@ import pandas as pd
 ARCHIVO_EXCEL     = "leads_verificados.xlsx"
 ARCHIVO_MENSAJES  = "messages.json"
 ARCHIVO_PLANTILLA = "plantilla_leads.html"
+ARCHIVO_ALIASES   = "legacy_aliases.json"   # de generar_aliases.py
 ARCHIVOS_HTML     = ["index.html", "leads_carriers.html"]
 
 
@@ -96,10 +97,16 @@ def as_script_json(obj):
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 
 
+aliases = {}
+if os.path.exists(ARCHIVO_ALIASES):
+    with open(ARCHIVO_ALIASES, encoding="utf-8") as f:
+        aliases = json.load(f)
+
 with open(ARCHIVO_PLANTILLA, encoding="utf-8") as f:
     html = f.read()
 html = (html.replace("__LEADS_JSON__", as_script_json(leads))
-            .replace("__MESSAGES_JSON__", as_script_json(mensajes)))
+            .replace("__MESSAGES_JSON__", as_script_json(mensajes))
+            .replace("__ALIASES_JSON__", as_script_json(aliases)))
 
 for archivo in ARCHIVOS_HTML:
     with open(archivo, "w", encoding="utf-8") as f:

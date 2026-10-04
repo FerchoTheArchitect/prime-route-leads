@@ -35,6 +35,17 @@
       width: 100%; padding: 8px 12px; border: 1px solid #ccc;
       border-radius: 8px; font-size: 16px;
     }
+    .status-tabs { display: flex; gap: 6px; padding: 10px 16px 4px; background: white; }
+    .status-tab {
+      flex: 1; padding: 10px 4px; border-radius: 10px; border: 2px solid #c9d6e3; background: white;
+      color: #1F4E79; font-size: 14px; font-weight: 700; cursor: pointer; line-height: 1.2;
+    }
+    .status-tab b { display: block; font-size: 18px; }
+    .status-tab.active { background: #1F4E79; color: white; border-color: #1F4E79; }
+    .contacted-banner {
+      background: #E2EFDA; color: #375623; font-size: 12px; font-weight: 700;
+      padding: 5px 14px; letter-spacing: .3px;
+    }
     .filters {
       display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px;
       padding: 6px 16px 10px; background: white; border-bottom: 1px solid #ddd;
@@ -188,12 +199,12 @@
   <div class="search-bar">
     <input type="search" id="search" placeholder="Search name, state, city, MC, phone...">
   </div>
+  <div class="status-tabs">
+    <button class="status-tab active" data-status="pending">Not contacted<b id="n-pending">0</b></button>
+    <button class="status-tab" data-status="contacted">Contacted<b id="n-contacted">0</b></button>
+    <button class="status-tab" data-status="all">All<b id="n-all">0</b></button>
+  </div>
   <div class="filters">
-    <select id="f-status">
-      <option value="all">All</option>
-      <option value="pending">Not contacted</option>
-      <option value="contacted">Contacted</option>
-    </select>
     <select id="f-age">
       <option value="all">Any age</option>
       <option value="0-6">0-6 mo</option>
@@ -256,6 +267,7 @@
 
 <script type="application/json" id="leads-data">__LEADS_JSON__</script>
 <script type="application/json" id="messages-data">__MESSAGES_JSON__</script>
+<script type="application/json" id="aliases-data">__ALIASES_JSON__</script>
 <script>
 // ── Data ─────────────────────────────────────────────────────────────────────
 const LEADS = JSON.parse(document.getElementById('leads-data').textContent);
@@ -263,6 +275,9 @@ const MSG = JSON.parse(document.getElementById('messages-data').textContent);
 const ROTATION = MSG.rotation;
 const STAT_VERSIONS = [...ROTATION];
 const LEAD_BY_MC = new Map(LEADS.map(l => [l.mc, l]));
+// Old "contacted" keys saved by early pages in another format (DOT number, or an older MC with the
+// same phone) -> current MC. Built from git history by generar_aliases.py.
+const ALIASES = JSON.parse(document.getElementById('aliases-data').textContent);
 
 const OUTCOMES = ['No reply', 'Replied', 'Asked price', 'Interested', 'Not interested', 'STOP', 'Called me scammer', 'Signed'];
 const DNC_OUTCOMES = new Set(['STOP', 'Not interested', 'Called me scammer']);
@@ -359,7 +374,7 @@ function dncPhones() {
 }
 function persistLog() {
   // Keep the old list in sync too, so the old page (backup) would still show who was contacted.
-  for (const mc of Object.keys(log)) oldContacted.add(mc);
+  for (const [mc, e] of Object.entries(log)) if (e.v !== 'legacy') oldContacted.add(mc);
   save(K_LOG, log);
   save(K_OLD, [...oldContacted]);
 }
@@ -385,6 +400,41 @@ function entryFromLead(lead, extra) {
   if (added) { save(K_LOG, log); meta.legacyMigratedAt = meta.legacyMigratedAt || nowIso(); save(K_META, meta); }
 })();
 
+// A carrier counts as contacted if the old list or the log has it under ANY key: its MC, its DOT
+// number, an old alias key, or the same phone number. Returns the reason, or '' if not contacted.
+let contactIndex = null;
+function buildContactIndex() {
+  const keys = new Set([...oldContacted, ...Object.keys(log)]);
+  const aliasTargets = new Set();
+  for (const k of keys) if (ALIASES[k]) aliasTargets.add(ALIASES[k]);
+  const phones = new Set();
+  for (const e of Object.values(log)) if (e.phone) phones.add(e.phone);
+  contactIndex = { keys, aliasTargets, phones };
+}
+function contactedVia(lead) {
+  if (!contactIndex) buildContactIndex();
+  const { keys, aliasTargets, phones } = contactIndex;
+  if (log[lead.mc] || keys.has(lead.mc)) return 'MC';
+  if (lead.dot && keys.has(lead.dot)) return 'DOT ' + lead.dot;
+  if (aliasTargets.has(lead.mc)) return 'old key';
+  if (lead.p && phones.has(lead.p)) return 'same phone';
+  return '';
+}
+// Give every carrier contacted under another key its own legacy log entry, so it shows as contacted.
+function linkContacted() {
+  buildContactIndex();
+  let added = 0;
+  for (const lead of LEADS) {
+    if (log[lead.mc]) continue;
+    const via = contactedVia(lead);
+    if (via) { log[lead.mc] = entryFromLead(lead, { v: 'legacy', outcome: 'legacy', via }); added++; }
+  }
+  if (added) save(K_LOG, log);
+  buildContactIndex();
+  return added;
+}
+linkContacted();
+
 function pickVersion() {
   const counts = Object.fromEntries(ROTATION.map(v => [v, 0]));
   for (const e of Object.values(log)) if (e.v in counts) counts[e.v]++;
@@ -406,6 +456,7 @@ function recordSend(lead) {
   const v = pickVersion();
   log[lead.mc] = entryFromLead(lead, { v, sent: nowIso(), age: ageBucket(lead.r) });
   persistLog();
+  linkContacted();   // another card with the same phone now counts as contacted too
   return fill(v, lead);
 }
 
@@ -465,6 +516,7 @@ function cardHtml(lead, e) {
 
   return `
     <div class="card ${isDry ? 'dry' : 'other'}${contacted ? ' contacted' : ''}" data-mc="${esc(lead.mc)}">
+      ${contacted ? `<div class="contacted-banner">✓ CONTACTED${e.sent ? ' ' + esc(fmtDate(e.sent)) : ''}${e.via ? ' (matched by ' + esc(e.via) + ')' : ''} — do not text again</div>` : ''}
       <div class="card-header">
         <span class="company">${esc(lead.n)}</span>
         <span class="tags">${isDry ? '<span class="badge">Dry Van</span>' : ''}${vTag}${oTag}</span>
@@ -584,21 +636,26 @@ function fillSelect(id, options, value) {
 fillSelect('f-version', [['all', 'Any version'], ...STAT_VERSIONS.map(v => [v, v]), ['legacy', 'Legacy'], ['manual', 'Manual']], ui.version);
 fillSelect('f-outcome', [['all', 'Any outcome'], ['waiting', 'Waiting (<7d)'],
   ...OUTCOMES.filter(o => !DNC_OUTCOMES.has(o)).map(o => [o, o]), ['legacy', 'Legacy (unknown)']], ui.outcome);
-for (const k of ['status', 'age', 'trucks', 'cargo']) if (ui[k]) document.getElementById('f-' + k).value = ui[k];
+for (const k of ['age', 'trucks', 'cargo']) if (ui[k]) document.getElementById('f-' + k).value = ui[k];
+let currentStatus = 'pending';   // "Not contacted" is always the default view
+document.querySelectorAll('.status-tab').forEach(b => b.addEventListener('click', () => {
+  currentStatus = b.dataset.status;
+  document.querySelectorAll('.status-tab').forEach(x => x.classList.toggle('active', x === b));
+  applyFilters(); window.scrollTo(0, 0);
+}));
 
 function applyFilters() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const qd = q.replace(/[^0-9]/g, '');
   const f = {};
-  for (const k of ['status', 'age', 'trucks', 'version', 'outcome', 'cargo']) f[k] = document.getElementById('f-' + k).value;
+  for (const k of ['age', 'trucks', 'version', 'outcome', 'cargo']) f[k] = document.getElementById('f-' + k).value;
   ui = f; save(K_UI, ui);
   const dncP = dncPhones();
+  buildContactIndex();
 
-  filtered = LEADS.filter(l => {
+  const base = LEADS.filter(l => {
     const e = log[l.mc];
     if (isDnc(e) || dncP.has(l.p)) return false;          // do-not-contact: hidden for good
-    if (f.status === 'pending' && e) return false;
-    if (f.status === 'contacted' && !e) return false;
     if (f.age !== 'all' && ageBucket(l.r) !== f.age) return false;
     if (f.trucks !== 'all' && trucksGroup(l.t) !== f.trucks) return false;
     if (f.version !== 'all' && (!e || e.v !== f.version)) return false;
@@ -614,6 +671,13 @@ function applyFilters() {
     }
     return true;
   });
+  const isC = l => !!contactedVia(l);
+  const nContacted = base.filter(isC).length;
+  document.getElementById('n-all').textContent = base.length.toLocaleString();
+  document.getElementById('n-contacted').textContent = nContacted.toLocaleString();
+  document.getElementById('n-pending').textContent = (base.length - nContacted).toLocaleString();
+  filtered = currentStatus === 'all' ? base
+           : base.filter(l => currentStatus === 'contacted' ? isC(l) : !isC(l));
   shown = 0;
   document.getElementById('card-list').innerHTML = '';
   renderMore();
@@ -632,7 +696,7 @@ function renderMore() {
 function updateCounts() {
   let c = 0, today = 0;
   const t0 = new Date(); t0.setHours(0, 0, 0, 0);
-  for (const l of LEADS) if (log[l.mc]) c++;
+  for (const l of LEADS) if (contactedVia(l)) c++;
   for (const e of Object.values(log)) if (e.sent && new Date(e.sent) >= t0) today++;
   document.getElementById('contacted-count').textContent = c.toLocaleString();
   document.getElementById('lead-total').textContent = LEADS.length.toLocaleString();
@@ -860,9 +924,15 @@ function renderBackup() {
     ? `Last export: ${fmtDateTime(meta.lastExport)} (${d} day${d === 1 ? '' : 's'} ago)` : 'Never exported.';
   const n = Object.keys(log).length;
   const legacy = Object.values(log).filter(e => e.v === 'legacy').length;
+  const dots = new Set(LEADS.map(l => l.dot));
+  let match = 0;
+  for (const k of oldContacted) if (LEAD_BY_MC.has(k) || LEAD_BY_MC.has(ALIASES[k]) || dots.has(k)) match++;
+  const onPage = LEADS.filter(l => contactedVia(l)).length;
   document.getElementById('storage-info').textContent =
-    `On this phone: ${n.toLocaleString()} contacted carriers in the log (${legacy.toLocaleString()} legacy from the old "Mark as contacted"). ` +
-    `Old list still kept: ${oldContacted.size.toLocaleString()} MCs.`;
+    `Old "Mark as contacted" list: ${oldContacted.size.toLocaleString()} keys — ${match.toLocaleString()} match a carrier on this page, ` +
+    `${(oldContacted.size - match).toLocaleString()} don't match any current carrier (from older lead lists). ` +
+    `Carriers on this page counted as contacted: ${onPage.toLocaleString()} of ${LEADS.length.toLocaleString()}. ` +
+    `Log entries on this phone: ${n.toLocaleString()} (${legacy.toLocaleString()} legacy).`;
 }
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
