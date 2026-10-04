@@ -7,6 +7,7 @@ Opciones (todas opcionales):
   --min-months 12 --max-months 36   ventana de registro (meses atras)
   --min-trucks 1  --max-trucks 3    numero de camiones (power units)
   --batch 500                       cuantos verificar contra Motus
+  --allow-straight-trucks           NO excluir carriers con straight trucks (por defecto SI se excluyen)
   --dry-run                         solo muestra el filtro y la lista do-not-contact, no descarga nada
 Ejemplo: python verificar_safer.py --min-months 12 --max-months 36 --max-trucks 3
 """
@@ -27,6 +28,8 @@ ap.add_argument("--max-months", type=int, default=6, help="registrados hace como
 ap.add_argument("--min-trucks", type=int, default=1, help="minimo de camiones (default 1)")
 ap.add_argument("--max-trucks", type=int, default=1, help="maximo de camiones (default 1)")
 ap.add_argument("--batch", type=int, default=500, help="cuantos verificar contra Motus (default 500)")
+ap.add_argument("--allow-straight-trucks", action="store_true",
+                help="incluir carriers que reportan straight trucks (por defecto se excluyen)")
 ap.add_argument("--private-dir", default="private", help="carpeta local con do_not_contact.csv / exports del celular")
 ap.add_argument("--dry-run", action="store_true", help="no descarga ni verifica nada")
 args = ap.parse_args()
@@ -109,6 +112,15 @@ where = (
     f"AND (owntract::number > 0 OR trmtract::number > 0 OR trptract::number > 0 "
     f"OR owntrail::number > 0 OR trmtrail::number > 0 OR trptrail::number > 0)"
 )
+
+# Excluir carriers con straight trucks (box trucks). En FMCSA un 0 viene vacio (NULL), asi que NULL = 0.
+if not args.allow_straight_trucks:
+    where += (
+        " AND (owntruck IS NULL OR owntruck::number = 0)"
+        " AND (trmtruck IS NULL OR trmtruck::number = 0)"
+        " AND (trptruck IS NULL OR trptruck::number = 0)"
+    )
+print("Straight trucks: " + ("incluidos (--allow-straight-trucks)" if args.allow_straight_trucks else "excluidos"))
 
 if args.dry_run:
     print("\n[DRY RUN] Filtro FMCSA:\n  " + where)
